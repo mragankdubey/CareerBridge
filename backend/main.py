@@ -213,15 +213,21 @@ role_skills = {
 
 @app.post("/skill-gap")
 def skill_gap(student: Student):
-    target_role = student.target_role
-    required_skills = role_skills.get(target_role, [])
-    student_skills = set(student.skills)
-    missing_skills = [skill for skill in required_skills if skill not in student_skills]
-    
+    required_skills = role_skills.get(student.target_role, [])
+
+    matching_skills = []
+    missing_skills = []
+
+    for skill in required_skills:
+        if skill.lower() in [s.lower() for s in student.skills]:
+            matching_skills.append(skill)
+        else:
+            missing_skills.append(skill)
+
     return {
         "message": "Skill gap analysis completed successfully",
-        "target_role": target_role,
-        "required_skills": required_skills,
-        "student_skills": list(student_skills),
+        "student_name": student.name,
+        "target_role": student.target_role,
+        "matching_skills": matching_skills,
         "missing_skills": missing_skills
     }
