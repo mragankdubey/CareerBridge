@@ -3,8 +3,8 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
-    title = "CarrerBridge API",
-    description = "Backend API for CarrerBridge",
+    title = "CareerBridge API",
+    description = "Backend API for CareerBridge",
     version = "1.0.0"
 )
 
@@ -230,4 +230,31 @@ def skill_gap(student: Student):
         "target_role": student.target_role,
         "matching_skills": matching_skills,
         "missing_skills": missing_skills
+    }
+
+#============ Internship Match Score =============
+
+@app.post("/match-internship")
+def match_internship(student: Student, internship: Internship):
+    matching_skills = []
+    missing_skills = []
+
+    student_skills_lower = [skill.lower() for skill in student.skills]
+
+    for skill in internship.skills_required:
+        if skill.lower() in student_skills_lower:
+            matching_skills.append(skill)
+        else:
+            missing_skills.append(skill)
+    total_required = len(internship.skills_required)
+    total_matching = len(matching_skills)
+
+    match_score = (total_matching / total_required) * 100 if total_required > 0 else 0
+
+    return {
+        "student" : student.name,
+        "internship" : internship.role,
+        "match_score" : f"{match_score:.2f}",
+        "matching skills" : matching_skills,
+        "missing skills" : missing_skills
     }
