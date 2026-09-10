@@ -1,10 +1,19 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title = "CarrerBridge API",
     description = "Backend API for CarrerBridge",
     version = "1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 class Student (BaseModel):
@@ -120,3 +129,99 @@ def get_internships():
         "internships": internships
     }
 
+#=========required skills for each role=========
+
+role_skills = {
+   
+    "Ayurvedic Physician/Intern (BAMS)" : [
+        "Ayurvedic diagnosis (Nidan)", 
+        "Prakriti assessment, classical texts (Charaka/Sushruta Samhita)", 
+        "pulse diagnosis (Nadi Pariksha)", 
+        "prescription/formulation knowledge", 
+        "patient counseling", 
+        "clinical documentation"
+    ],
+
+    "Panchkarma Therapist" : [
+        "Panchakarma procedures (Vamana, Virechana, Basti, Nasya, Raktamokshana)", 
+        "Abhyanga & Swedana techniques",
+        "herbal oil/medicine application",
+        "patient safety protocols", 
+        "pre/post-procedure care",
+        "physical stamina"
+    ],
+
+    "Yoga Instructor" : [
+        "Asana & Pranayama instruction",
+        "Yoga therapy for specific conditions", 
+        "anatomy & physiology basics", 
+        "sequencing/class planning",
+        "communication & demonstration skills", 
+        "certification (Yoga Alliance/AYUSH-recognized)"
+    ],
+
+    "Herbal Quality Analyst" : [
+        "Pharmacognosy",
+        "phytochemical analysis",
+        "HPLC/GC testing", 
+        "quality control per API (Ayurvedic Pharmacopoeia of India) standards", 
+        "raw material authentication",
+        "lab documentation",
+        "adulteration detection"
+    ],
+
+    "Ayurvedic Pharmacist" : [
+        "Ayurvedic pharmaceutics (Bhaishajya Kalpana)",
+        "formulation preparation (Churna, Asava-Arishta, Bhasma)", 
+        "GMP compliance",
+        "dispensing knowledge",
+        "drug storage/stability", 
+        "regulatory labeling"
+    ],
+
+    "Clinical Research Associate (Ayurveda)" : [
+        "Clinical trial design (CTRI registration)",
+        " GCP (Good Clinical Practice)",
+        "data collection & biostatistics basics," 
+        "protocol writing", 
+        "ethics compliance", 
+        "pharmacovigilance", 
+        "report documentation"
+    ],
+
+    "Wellness Centre Manager" : [
+        "Operations management, staff scheduling", 
+        "customer/patient relations", 
+        "basic finance & billing", 
+        "marketing for wellness services", 
+        "compliance with health & safety norms", 
+        "inventory management"
+    ],
+
+    "Regulatory Affairs (AYUSH Compilance)" : [
+        "AYUSH licensing procedures", 
+        "Drugs & Cosmetics Act (Ayurveda provisions)", 
+        "labeling/claims regulations", 
+        "documentation for approvals", 
+        "liaison with regulatory bodies", 
+        "audit readiness"
+    ]
+}
+
+
+# ============ Skill Matching =============
+
+@app.post("/skill-gap")
+def skill_gap(student: Student):
+    target_role = student.target_role
+    required_skills = role_skills.get(target_role, [])
+    student_skills = set(student.skills)
+    missing_skills = [skill for skill in required_skills if skill not in student_skills]
+    
+    return {
+        "message": "Skill gap analysis completed successfully",
+        "target_role": target_role,
+        "required_skills": required_skills,
+        "student_skills": list(student_skills),
+        "missing_skills": missing_skills
+    }
