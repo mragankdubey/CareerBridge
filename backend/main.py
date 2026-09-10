@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from database import engine, Base
+from database import engine, Base, SessionLocal
 from models import StudentDB
+from sqlalchemy.orm import Session
 
 Base.metadata.create_all(bind=engine)
 
