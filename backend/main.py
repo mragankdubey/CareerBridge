@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from database import engine
 
 app = FastAPI(
     title = "CareerBridge API",
