@@ -9,3 +9,10 @@ class StudentDB(Base):
     domain = Column(String)
     target_role = Column(String)
     skills = Column(String) 
+
+class AcademiaDB(Base):
+    __tablename__ = "academia"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    institution_type = Column(String)

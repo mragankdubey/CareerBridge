@@ -2,10 +2,17 @@ from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
-from models import StudentDB
+from models import StudentDB, AcademiaDB
 from sqlalchemy.orm import Session
 
 Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 app = FastAPI(
     title = "CareerBridge API",
@@ -41,10 +48,8 @@ class Academia (BaseModel):
     name : str
     institution_type : str
     
-students = []
 industries = []
 internships = []
-academia = []
 
 # Home route to check if the API is running
 
@@ -59,17 +64,31 @@ def home():
 #Create a student profile
 
 @app.post("/students")
-def create_student(student: Student):
-    students.append(student)
+def create_student(student: Student,db: Session = Depends(get_db)):
+
+    db_student = StudentDB(
+        name=student.name,
+        domain=student.domain,
+        target_role=student.target_role,
+        skills=", ".join(student.skills)
+    )
+
+    db.add(db_student)
+    db.commit()
+    db.refresh(db_student)
+    
     return {
         "message": "Student Profile created successfully",
-        "student": student
+        "student": db_student
     }
 
 # Get all student profiles
 
 @app.get("/students")
-def get_students():
+def get_students(db: Session = Depends(get_db)):
+
+    students = db.query(StudentDB).all()
+
     return {
         "message": "Students retrieved successfully",
         "students": students
@@ -80,8 +99,21 @@ def get_students():
 # Create an Academia profile
 
 @app.post("/academia")
-def create_academia(academia_profile: Academia):
-    academia.append(academia_profile)
+def create_academia(
+    academia_profile: Academia,
+    db: Session = Depends(get_db)
+):
+
+    db_academia = AcademiaDB(
+        name=academia_profile.name,
+        institution_type=academia_profile.institution_type
+    )
+
+    db.add(db_academia)
+    db.commit()
+    db.refresh(db_academia)
+
+
     return {
         "message": "Academia Profile created successfully",
         "academia": academia_profile
@@ -90,7 +122,10 @@ def create_academia(academia_profile: Academia):
 # Get all academia profiles
 
 @app.get("/academia")
-def get_academia():
+def get_academia(db: Session = Depends(get_db)):
+
+    academia_profiles = db.query(AcademiaDB).all()
+
     return {
         "message": "Academia profiles retrieved successfully",
         "academia": academia
