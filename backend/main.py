@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
 from models import StudentDB, AcademiaDB, IndustryDB, InternshipDB
 from sqlalchemy.orm import Session
+from matching import calculate_skill_match
 
 Base.metadata.create_all(bind=engine)
 
@@ -289,48 +290,78 @@ role_skills = {
 
 @app.post("/skill-gap")
 def skill_gap(student: Student):
+
     required_skills = role_skills.get(student.target_role, [])
 
-    matching_skills = []
-    missing_skills = []
-
-    for skill in required_skills:
-        if skill.lower() in [s.lower() for s in student.skills]:
-            matching_skills.append(skill)
-        else:
-            missing_skills.append(skill)
+    result = calculate_skill_match(
+        student.skills,
+        required_skills
+    )
 
     return {
         "message": "Skill gap analysis completed successfully",
         "student_name": student.name,
         "target_role": student.target_role,
-        "matching_skills": matching_skills,
-        "missing_skills": missing_skills
+        "matching_skills": result["matching_skills"],
+        "missing_skills": result["missing_skills"],
+        "match_score": result["match_score"]
     }
 
 #============ Internship Match Score =============
 
-@app.post("/match-internship")
-def match_internship(student: Student, internship: Internship):
-    matching_skills = []
-    missing_skills = []
+@app.get("/students/{student_id}/matches")
+def get_internship_matches(
+    student_id: int,
+    db: Session = Depends(get_db)
+):
 
-    student_skills_lower = [skill.lower() for skill in student.skills]
+    # Find Student
+    student = db.query(StudentDB).filter(
+        StudentDB.id == student_id
+    ).first()
+    if not student:
+        return {
+            "message": "Student not found"
+        }
 
-    for skill in internship.skills_required:
-        if skill.lower() in student_skills_lower:
-            matching_skills.append(skill)
-        else:
-            missing_skills.append(skill)
-    total_required = len(internship.skills_required)
-    total_matching = len(matching_skills)
+    # Get all internship
+    internships = db.query(InternshipDB).all()
+    results = []
 
-    match_score = (total_matching / total_required) * 100 if total_required > 0 else 0
+    # Student skills into list
+    student_skills = [
+        skill.strip()
+        for skill in student.skills.split(",")
+    ]
+
+    # Compare student with all internships
+    for internship in internships:
+        required_skills = [
+            skill.strip()
+            for skill in internship.skills_required.split(",")
+        ]
+        result = calculate_skill_match(
+            student_skills,
+            required_skills
+        )
+        results.append({
+            "internship_id": internship.id,
+            "industry": internship.industry,
+            "role": internship.role,
+            "description": internship.description,
+            "match_score": result["match_score"],
+            "matching_skills": result["matching_skills"],
+            "missing_skills": result["missing_skills"]
+        })
+
+    # Highest to lowest match
+    results.sort(
+        key=lambda x: x["match_score"],
+        reverse=True
+    )
 
     return {
-        "student" : student.name,
-        "internship" : internship.role,
-        "match_score" : f"{match_score:.2f}",
-        "matching skills" : matching_skills,
-        "missing skills" : missing_skills
+        "student_id": student.id,
+        "student_name": student.name,
+        "matches": results
     }
