@@ -100,6 +100,55 @@ def get_students(db: Session = Depends(get_db)):
         "students": students
     }
 
+
+@app.get("/students/{student_id}")
+def get_student(
+    student_id: int,
+    db: Session = Depends(get_db)
+):
+
+    student = db.query(StudentDB).filter(
+        StudentDB.id == student_id
+    ).first()
+
+    if not student:
+        return {
+            "message": "Student not found"
+        }
+    return {
+        "message": "Student retrieved successfully",
+        "student": student
+    }
+
+
+@app.put("/students/{student_id}")
+def update_student(
+    student_id: int,
+    student: Student,
+    db: Session = Depends(get_db)
+):
+    existing_student = db.query(StudentDB).filter(
+        StudentDB.id == student_id
+    ).first()
+
+    if not existing_student:
+        return {
+            "message": "Student not found"
+        }
+
+    existing_student.name = student.name
+    existing_student.domain = student.domain
+    existing_student.target_role = student.target_role
+    existing_student.skills = ", ".join(student.skills)
+
+    db.commit()
+    db.refresh(existing_student)
+
+    return {
+        "message": "Student profile updated successfully",
+        "student": existing_student
+    }
+
 #============ Academia =============
 
 # Create an Academia profile
