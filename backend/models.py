@@ -16,3 +16,10 @@ class AcademiaDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     institution_type = Column(String)
+
+class IndustryDB(Base):
+    __tablename__ = "industries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    industry = Column(String)

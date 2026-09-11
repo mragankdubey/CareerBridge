@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
-from models import StudentDB, AcademiaDB
+from models import StudentDB, AcademiaDB, IndustryDB
 from sqlalchemy.orm import Session
 
 Base.metadata.create_all(bind=engine)
@@ -48,7 +48,6 @@ class Academia (BaseModel):
     name : str
     institution_type : str
     
-industries = []
 internships = []
 
 # Home route to check if the API is running
@@ -128,7 +127,7 @@ def get_academia(db: Session = Depends(get_db)):
 
     return {
         "message": "Academia profiles retrieved successfully",
-        "academia": academia
+        "academia": academia_profiles
     }
 
 #============ Industry =============
@@ -136,17 +135,32 @@ def get_academia(db: Session = Depends(get_db)):
 # Create an Industry profile
 
 @app.post("/industries")
-def create_industry(industry: Industry):
-    industries.append(industry)
+def create_industry(
+    industry: Industry,
+    db: Session = Depends(get_db)
+):
+
+    db_industry = IndustryDB(
+        name=industry.name,
+        industry=industry.industry
+    )
+
+    db.add(db_industry)
+    db.commit()
+    db.refresh(db_industry)
+
     return {
         "message": "Industry Profile created successfully",
-        "industry": industry
+        "industry": db_industry
     }
 
 # Get all industry profiles
 
 @app.get("/industries")
-def get_industries():
+def get_industries(db: Session = Depends(get_db)):
+
+    industries = db.query(IndustryDB).all()
+
     return {
         "message": "Industries retrieved successfully",
         "industries": industries
