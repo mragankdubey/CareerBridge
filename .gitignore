@@ -1,4 +1,25 @@
-.venv/
-backend/.env
+# Python generated files
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Local runtime data and uploaded files
+backend/uploads/
+*.db-wal
+*.db-shm
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
