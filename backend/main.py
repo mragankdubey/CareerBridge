@@ -2,9 +2,10 @@ from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
-from models import StudentDB, AcademiaDB, IndustryDB, InternshipDB
+from models import StudentDB, AcademiaDB, IndustryDB, InternshipDB, CourseDB
 from sqlalchemy.orm import Session
 from matching import calculate_skill_match
+from course_matching import calculate_course_relevance
 
 Base.metadata.create_all(bind=engine)
 
@@ -48,6 +49,13 @@ class Internship (BaseModel):
 class Academia (BaseModel):
     name : str
     institution_type : str
+
+class Course(BaseModel):
+    title: str
+    provider: str
+    description: str
+    skills_taught: list[str]
+    course_url: str
 
 # Home route to check if the API is running
 
@@ -205,6 +213,51 @@ def get_internships(db: Session = Depends(get_db)):
         "message": "Internships retrieved successfully",
         "internships": internships
     }
+
+#=========courses==========
+
+@app.post("/courses")
+def create_course(
+    course: Course,
+    db: Session = Depends(get_db)
+):
+
+    db_course = CourseDB(
+        title=course.title,
+        provider=course.provider,
+        description=course.description,
+        skills_taught=", ".join(course.skills_taught),
+        course_url=course.course_url
+    )
+
+    db.add(db_course)
+    db.commit()
+    db.refresh(db_course)
+
+    return {
+        "message": "Course created successfully",
+        "course": {
+            "id": db_course.id,
+            "title": db_course.title,
+            "provider": db_course.provider,
+            "description": db_course.description,
+            "skills_taught": db_course.skills_taught,
+            "course_url": db_course.course_url
+        }
+    }
+
+
+@app.get("/courses")
+def get_courses(db: Session = Depends(get_db)):
+
+    courses = db.query(CourseDB).all()
+
+    return {
+        "message": "Courses retrieved successfully",
+        "courses": courses
+    }
+
+
 
 #=========required skills for each role=========
 
@@ -364,4 +417,84 @@ def get_internship_matches(
         "student_id": student.id,
         "student_name": student.name,
         "matches": results
+    }
+
+#===========Course Recommendation===========
+
+@app.get("/students/{student_id}/course-recommendations")
+def get_course_recommendations(
+    student_id: int,
+    db: Session = Depends(get_db)
+):
+
+    #Find Student
+    student = db.query(StudentDB).filter(
+        StudentDB.id == student_id
+    ).first()
+    if not student:
+        return {
+            "message": "Student not found"
+        }
+
+    # Req skills for student's targeting role
+    required_skills = role_skills.get(
+        student.target_role,
+        []
+    )
+
+    #Student's skills into list
+    student_skills = [
+        skill.strip()
+        for skill in student.skills.split(",")
+    ]
+
+    #Find missing skills
+    skill_gap = calculate_skill_match(
+        student_skills,
+        required_skills
+    )
+    missing_skills = skill_gap["missing_skills"]
+
+    # All courses
+    courses = db.query(CourseDB).all()
+
+    recommendations = []
+
+    # Compare course with missing skills
+    for course in courses:
+        course_skills = [
+            skill.strip()
+            for skill in course.skills_taught.split(",")
+        ]
+
+        result = calculate_course_relevance(
+            missing_skills,
+            course_skills
+        )
+
+        # Only recommend courses that cover at least one missing skill
+        if result["relevance_score"] > 0:
+
+            recommendations.append({
+                "course_id": course.id,
+                "title": course.title,
+                "provider": course.provider,
+                "description": course.description,
+                "course_url": course.course_url,
+                "relevance_score": result["relevance_score"],
+                "matching_skills": result["matching_skills"]
+            })
+
+    #High relevance to Low
+    recommendations.sort(
+        key=lambda x: x["relevance_score"],
+        reverse=True
+    )
+
+    return {
+        "student_id": student.id,
+        "student_name": student.name,
+        "target_role": student.target_role,
+        "missing_skills": missing_skills,
+        "course_recommendations": recommendations
     }

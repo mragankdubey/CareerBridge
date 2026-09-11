@@ -32,3 +32,13 @@ class InternshipDB(Base):
     role = Column(String)
     description = Column(String)
     skills_required = Column(String)
+
+class CourseDB(Base):
+    __tablename__ = "courses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    provider = Column(String)
+    description = Column(String)
+    skills_taught = Column(String)
+    course_url = Column(String)
