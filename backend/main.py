@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from matching import calculate_skill_match
 from course_matching import calculate_course_relevance
 
+from ai import ask_gemini
+
 Base.metadata.create_all(bind=engine)
 
 def get_db():
@@ -49,6 +51,10 @@ class Internship (BaseModel):
 class Academia (BaseModel):
     name : str
     institution_type : str
+
+class ChatRequest(BaseModel):
+    message: str
+    student_id: int | None = None
 
 class Course(BaseModel):
     title: str
@@ -546,4 +552,68 @@ def get_course_recommendations(
         "target_role": student.target_role,
         "missing_skills": missing_skills,
         "course_recommendations": recommendations
+    }
+
+
+@app.post("/chat")
+def chat(
+    request: ChatRequest,
+    db: Session = Depends(get_db)
+):
+
+    student_context = ""
+
+    if request.student_id is not None:
+
+        student = db.query(StudentDB).filter(
+            StudentDB.id == request.student_id
+        ).first()
+
+        if not student:
+            return {"message": "Student not found"}
+
+        required_skills = role_skills.get(
+            student.target_role,
+            []
+        )
+        student_skills = [
+            skill.strip()
+            for skill in student.skills.split(",")
+        ]
+        skill_gap = calculate_skill_match(
+            student_skills,
+            required_skills
+        )
+
+        student_context = f"""
+Student name: {student.name}
+Domain: {student.domain}
+Target role: {student.target_role}
+Current skills: {", ".join(student_skills)}
+Matching skills: {", ".join(skill_gap["matching_skills"])}
+Missing skills: {", ".join(skill_gap["missing_skills"])}
+"""
+
+    prompt = f"""
+You are CareerBridge AI Assistant.
+
+CareerBridge helps students understand career requirements,
+identify skill gaps, find relevant courses, and discover
+suitable internships.
+
+Use the student's information below when it is available.
+
+{student_context}
+
+Student's question:
+{request.message}
+
+Give a clear, practical and concise answer.
+Do not invent information about the student.
+"""
+
+    answer = ask_gemini(prompt)
+
+    return {
+        "response": answer
     }
