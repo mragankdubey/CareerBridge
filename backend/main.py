@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, SessionLocal
-from models import StudentDB, AcademiaDB, IndustryDB
+from models import StudentDB, AcademiaDB, IndustryDB, InternshipDB
 from sqlalchemy.orm import Session
 
 Base.metadata.create_all(bind=engine)
@@ -47,8 +47,6 @@ class Internship (BaseModel):
 class Academia (BaseModel):
     name : str
     institution_type : str
-    
-internships = []
 
 # Home route to check if the API is running
 
@@ -169,15 +167,39 @@ def get_industries(db: Session = Depends(get_db)):
 #============ Internship =============
 
 @app.post("/internships")
-def create_internship(internship: Internship):
-    internships.append(internship)
+def create_internship(
+    internship: Internship,
+    db: Session = Depends(get_db)
+):
+
+    db_internship = InternshipDB(
+        industry=internship.industry,
+        role=internship.role,
+        description=internship.description,
+        skills_required=", ".join(internship.skills_required)
+    )
+
+    db.add(db_internship)
+    db.commit()
+    db.refresh(db_internship)
+
     return {
         "message": "Internship created successfully",
-        "internship": internship
+        "internship": {
+            "id": db_internship.id,
+            "industry": db_internship.industry,
+            "role": db_internship.role,
+            "description": db_internship.description,
+            "skills_required": db_internship.skills_required
+        }
     }
 
+
 @app.get("/internships")
-def get_internships():
+def get_internships(db: Session = Depends(get_db)):
+
+    internships = db.query(InternshipDB).all()
+
     return {
         "message": "Internships retrieved successfully",
         "internships": internships

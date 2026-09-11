@@ -23,3 +23,12 @@ class IndustryDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     industry = Column(String)
+
+class InternshipDB(Base):
+    __tablename__ = "internships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    industry = Column(String)
+    role = Column(String)
+    description = Column(String)
+    skills_required = Column(String)
